@@ -74,7 +74,7 @@
       "SubnetARef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetAName'))]",
       "SubnetBRef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetBName'))]",
       "dnsNameForDcAMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcAMachineName')))]", 
-      "dnsNameForDcBMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcAMachineName')))]" 
+      "dnsNameForDcBMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcBMachineName')))]" 
   },
   "resources": [
     {
