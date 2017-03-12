@@ -209,7 +209,7 @@
       "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
-        "displayName": "Domain Controller A"
+        "displayName": "DomainControllerA"
       },
       "dependsOn": [
         "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccountName'))]",
@@ -255,7 +255,7 @@
       "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
-        "displayName": "Domain Controller B"
+        "displayName": "DomainControllerB"
       },
       "dependsOn": [
         "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccountName'))]",
