@@ -2,15 +2,79 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    
+    "UniqueNamePrefix": {
+      "type": "string",
+      "defaultValue": "cadull2d"
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "Carsten",
+      "metadata": {
+        "description": "Admin username"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "P2ssw0rd",
+      "metadata": {
+        "description": "Admin password"
+      }
+    },
+    "VmImagePublisher": {
+      "type": "string",
+      "defaultValue": "MicrosoftWindowsServer",
+      "metadata": {
+        "description": "Image Publisher"
+      }
+    },
+    "VmImageOffer": {
+      "type": "string",
+      "defaultValue": "WindowsServer",
+      "metadata": {
+        "description": "Image Offer"     
+      }
+    },
+    "VmImageSKU": {
+      "type": "string",
+      "defaultValue": "2012-R2-Datacenter",
+      "metadata": {
+        "description": "Image SKU"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_DS1",
+      "metadata": {
+        "description": "VM Size for all machines"
+      }
+    },
+    "storageAccountType": {
+      "type": "string",
+      "defaultValue": "Premium_LRS",
+      "metadata": {
+        "description": "The storage account type for everything (except our staging locations)"
+      }
+    } 
   },
   "variables": {
+      "newStorageAccountName" : "[concat(parameters('UniqueNamePrefix'),'stor')]",
       "VNetName":"TwoSubnetsVNet",
       "VNetPrefix":"10.0.0.0/16",
       "SubnetAPrefix":"10.0.1.0/24",
       "SubnetBPrefix":"10.0.2.0/24",
+      "SubnetAName":"SubnetA",
+      "SubnetBName":"SubnetB",
       "SubnetANsgName":"SubnetA.NSG",
-      "SubnetBNsgName":"SubnetB.NSG"
+      "SubnetBNsgName":"SubnetB.NSG",
+      "DcAMachineName":"DCA",
+      "DcANicName": "[concat(variables('DcAMachineName'),'nic')]",
+      "DcBMachineName":"DCB",
+      "DcBNicName": "[concat(variables('DcBMachineName'),'nic')]",
+      "VNetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('VNetName'))]",
+      "SubnetARef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetAName'))]",
+      "SubnetBRef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetBName'))]",
+      "dnsNameForDcAMachine": "[concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))]", 
+      "dnsNameForDcBMachine": "[concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))]" 
   },
   "resources": [
     {
@@ -137,6 +201,191 @@
             }
           }
         ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "variables['DcAMachineName']",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "Domain Controller A"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccountName'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', variables('DcANicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('VmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('DcAMachineName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[parameters('VmImagePublisher')]",
+            "offer": "[parameters('VmImageOffer')]",
+            "sku": "[parameters('VmImageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat('http://',variables('newStorageAccountName'),'.blob.core.windows.net/vhds/',variables('DcAMachineName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('dcANicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "variables['DcBMachineName']",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "Domain Controller B"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccountName'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', variables('DcBNicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('VmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('DcAMachineName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[parameters('VmImagePublisher')]",
+            "offer": "[parameters('VmImageOffer')]",
+            "sku": "[parameters('VmImageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat('http://',variables('newStorageAccountName'),'.blob.core.windows.net/vhds/',variables('DcBMachineName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('dcBNicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('DcANicName'))]",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "DcANic"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/virtualNetworks/', variables('VNetName'))]",
+        "[concat('Microsoft.Network/publicIPAddresses/', 'DcAPublicIp')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses','DcAPublicIp')]"
+              },
+              "subnet": {
+                "id": "[variables('SubnetARef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('DcBNicName'))]",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "DcBNic"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses','DcBPublicIp')]"
+              },
+              "subnet": {
+                "id": "[variables('SubnetBRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "DcAPublicIp",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsNameForDcAMachine')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "DcBPublicIp",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsNameForDcBMachine')]"
+        }
+      }
+    },
+    {
+      "apiVersion": "2015-05-01-preview",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('newStorageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "StorageAccount"
+      },
+      "properties": {
+        "accountType": "[parameters('storageAccountType')]"
       }
     }
   ]
