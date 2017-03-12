@@ -57,7 +57,7 @@
     } 
   },
   "variables": {
-      "newStorageAccountName" : "[concat(parameters('UniqueNamePrefix'),'stor')]",
+      "newStorageAccountName" : "toLower([concat(parameters('UniqueNamePrefix'),'stor')])",
       "VNetName":"TwoSubnetsVNet",
       "VNetPrefix":"10.0.0.0/16",
       "SubnetAPrefix":"10.0.1.0/24",
