@@ -73,8 +73,8 @@
       "VNetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('VNetName'))]",
       "SubnetARef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetAName'))]",
       "SubnetBRef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetBName'))]",
-      "dnsNameForDcAMachine": "[concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))]", 
-      "dnsNameForDcBMachine": "[concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))]" 
+      "dnsNameForDcAMachine": "toLower([concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))])", 
+      "dnsNameForDcBMachine": "toLower([concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))])" 
   },
   "resources": [
     {
