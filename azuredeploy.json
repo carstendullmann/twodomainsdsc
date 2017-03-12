@@ -57,7 +57,7 @@
     } 
   },
   "variables": {
-      "newStorageAccountName" : "toLower([concat(parameters('UniqueNamePrefix'),'stor')])",
+      "newStorageAccountName" : "[toLower(concat(parameters('UniqueNamePrefix'),'stor'))]",
       "VNetName":"TwoSubnetsVNet",
       "VNetPrefix":"10.0.0.0/16",
       "SubnetAPrefix":"10.0.1.0/24",
@@ -73,8 +73,8 @@
       "VNetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('VNetName'))]",
       "SubnetARef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetAName'))]",
       "SubnetBRef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetBName'))]",
-      "dnsNameForDcAMachine": "toLower([concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))])", 
-      "dnsNameForDcBMachine": "toLower([concat(parameters('uniqueNamePrefix'),variables('DcAMachineName'))])" 
+      "dnsNameForDcAMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcAMachineName')))]", 
+      "dnsNameForDcBMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcAMachineName')))]" 
   },
   "resources": [
     {
