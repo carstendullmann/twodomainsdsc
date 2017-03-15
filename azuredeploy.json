@@ -2,105 +2,85 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "UniqueNamePrefix": {
+    "vhdStorageType": {
       "type": "string",
-      "defaultValue": "cadull2d"
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
     },
-    "adminUsername": {
+    "dcaAdminUserName": {
       "type": "string",
-      "defaultValue": "Carsten",
-      "metadata": {
-        "description": "Admin username"
-      }
+      "minLength": 1
     },
-    "adminPassword": {
-      "type": "securestring",
-      "defaultValue": "P2ssw0rd",
-      "metadata": {
-        "description": "Admin password"
-      }
+    "dcaAdminPassword": {
+      "type": "securestring"
     },
-    "VmImagePublisher": {
-      "type": "string",
-      "defaultValue": "MicrosoftWindowsServer",
-      "metadata": {
-        "description": "Image Publisher"
-      }
-    },
-    "VmImageOffer": {
-      "type": "string",
-      "defaultValue": "WindowsServer",
-      "metadata": {
-        "description": "Image Offer"     
-      }
-    },
-    "VmImageSKU": {
+    "dcaWindowsOSVersion": {
       "type": "string",
       "defaultValue": "2012-R2-Datacenter",
-      "metadata": {
-        "description": "Image SKU"
-      }
-    },
-    "vmSize": {
-      "type": "string",
-      "defaultValue": "Standard_DS1",
-      "metadata": {
-        "description": "VM Size for all machines"
-      }
-    },
-    "storageAccountType": {
-      "type": "string",
-      "defaultValue": "Premium_LRS",
-      "metadata": {
-        "description": "The storage account type for everything (except our staging locations)"
-      }
-    } 
+      "allowedValues": [
+        "2008-R2-SP1",
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "2016-Datacenter",
+        "2016-Nano-Server"
+      ]
+    }
   },
   "variables": {
-      "newStorageAccountName" : "[toLower(concat(parameters('UniqueNamePrefix'),'stor'))]",
-      "VNetName":"TwoSubnetsVNet",
-      "VNetPrefix":"10.0.0.0/16",
-      "SubnetAPrefix":"10.0.1.0/24",
-      "SubnetBPrefix":"10.0.2.0/24",
-      "SubnetAName":"SubnetA",
-      "SubnetBName":"SubnetB",
-      "SubnetANsgName":"SubnetA.NSG",
-      "SubnetBNsgName":"SubnetB.NSG",
-      "DcAMachineName":"dca",
-      "DcANicName": "[concat(variables('DcAMachineName'),'nic')]",
-      "DcBMachineName":"dcb",
-      "DcBNicName": "[concat(variables('DcBMachineName'),'nic')]",
-      "VNetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('VNetName'))]",
-      "SubnetARef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetAName'))]",
-      "SubnetBRef": "[concat(variables('vnetID'),'/subnets/',variables('SubnetBName'))]",
-      "dnsNameForDcAMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcAMachineName')))]", 
-      "dnsNameForDcBMachine": "[toLower(concat(parameters('uniqueNamePrefix'),variables('DcBMachineName')))]" 
+    "dcaImageOffer": "WindowsServer",
+    "dcaImagePublisher": "MicrosoftWindowsServer",
+    "dcaName": "dca",
+    "dcaNicName": "dcaNic",
+    "dcaNicSubnetRef": "[concat(variables('dcaNicVnetID'), '/subnets/', 'SubnetA')]",
+    "dcaNicVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
+    "dcaOSDiskName": "dcaOSDisk",
+    "dcaPublicIpName": "dcaPublicIp",
+    "dcaStorageAccountContainerName": "vhds",
+    "dcaSubnetRef": "[concat(variables('dcaVnetID'), '/subnets/', 'SubnetA')]",
+    "dcaVmSize": "Standard_D2_v2",
+    "dcaVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
+    "SubnetANsgName": "SubnetA.NSG",
+    "SubnetAPrefix": "10.0.1.0/24",
+    "SubnetBNsgName": "SubnetB.NSG",
+    "SubnetBPrefix": "10.0.2.0/24",
+    "vhdStorageAccountName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
+    "VNetName": "TwoSubnetsVNet",
+    "VNetPrefix": "10.0.0.0/16",
+    "dscZipLocationUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC.zip",
+    "dcaDscConfigurationDataUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC/dcaConfigurationData.psd1"
   },
   "resources": [
     {
-      "apiVersion": "2015-05-01-preview",
+      "apiVersion": "2016-03-30",
       "type": "Microsoft.Network/networkSecurityGroups",
       "name": "[variables('SubnetANsgName')]",
       "location": "[resourceGroup().location]",
       "properties": {
         "securityRules": [
           {
-            "name": "Block_B",
+            "name": "Subnet_B_In",
             "properties": {
-              "description": "Block Subnet B",
+              "description": "Subnet B In",
               "protocol": "*",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
               "sourceAddressPrefix": "[variables('SubnetBPrefix')]",
               "destinationAddressPrefix": "*",
               "access": "Deny",
-              "priority": 101,
+              "priority": 200,
               "direction": "Inbound"
             }
-         },{
-            "name": "rdp_rule",
+          },
+          {
+            "name": "RDP_IN",
             "properties": {
-              "description": "Allow RDP",
+              "description": "RDP IN",
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "3389",
@@ -115,30 +95,30 @@
       }
     },
     {
-      "apiVersion": "2015-05-01-preview",
+      "apiVersion": "2016-03-30",
       "type": "Microsoft.Network/networkSecurityGroups",
       "name": "[variables('SubnetBNsgName')]",
       "location": "[resourceGroup().location]",
       "properties": {
         "securityRules": [
-         {
-            "name": "Block_A",
+          {
+            "name": "Subnet_A_In",
             "properties": {
-              "description": "Block Subnet A",
+              "description": "Subnet A In",
               "protocol": "*",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
               "sourceAddressPrefix": "[variables('SubnetAPrefix')]",
               "destinationAddressPrefix": "*",
               "access": "Deny",
-              "priority": 101,
+              "priority": 200,
               "direction": "Inbound"
             }
-         },
-         {
-            "name": "Block_RDP_Internet",
+          },
+          {
+            "name": "RDP_Internet_In",
             "properties": {
-              "description": "Block RDP",
+              "description": "RDP Internet In",
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "3389",
@@ -150,16 +130,16 @@
             }
           },
           {
-            "name": "Block_Internet_Outbound",
+            "name": "Internet_Out",
             "properties": {
-              "description": "Block Internet",
+              "description": "Internet Out",
               "protocol": "*",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
               "sourceAddressPrefix": "*",
               "destinationAddressPrefix": "Internet",
               "access": "Deny",
-              "priority": 200,
+              "priority": 300,
               "direction": "Outbound"
             }
           }
@@ -167,7 +147,7 @@
       }
     },
     {
-      "apiVersion": "2015-05-01-preview",
+      "apiVersion": "2016-03-30",
       "type": "Microsoft.Network/virtualNetworks",
       "name": "[variables('VNetName')]",
       "location": "[resourceGroup().location]",
@@ -203,30 +183,46 @@
         ]
       }
     },
-    
     {
-      "type": "Microsoft.Network/networkInterfaces",
-      "name": "[concat(variables('DcANicName'))]",
-      "apiVersion": "2015-05-01-preview",
+      "apiVersion": "2016-01-01",
+      "dependsOn": [],
+      "kind": "Storage",
       "location": "[resourceGroup().location]",
-      "tags": {
-        "displayName": "DcANic"
+      "name": "[variables('vhdStorageAccountName')]",
+      "properties": {
+        "type": "[parameters('vhdStorageType')]"
       },
+      "sku": {
+        "name": "[variables('vhdStorageAccountName')]"
+      },
+      "tags": {
+        "displayName": "[variables('vhdStorageAccountName')]"
+      },
+      "type": "Microsoft.Storage/storageAccounts"
+    },
+    {
+      "name": "[variables('dcaNicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
       "dependsOn": [
-        "[concat('Microsoft.Network/virtualNetworks/', variables('VNetName'))]",
-        "[concat('Microsoft.Network/publicIPAddresses/', 'DcAPublicIp')]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('dcaPublicIpName'))]"
       ],
+      "tags": {
+        "displayName": "[variables('dcaNicName')]"
+      },
       "properties": {
         "ipConfigurations": [
           {
             "name": "ipconfig1",
             "properties": {
               "privateIPAllocationMethod": "Dynamic",
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses','DcAPublicIp')]"
-              },
               "subnet": {
-                "id": "[variables('SubnetARef')]"
+                "id": "[variables('dcaNicSubnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('dcaPublicIpName'))]"
               }
             }
           }
@@ -234,27 +230,37 @@
       }
     },
     {
-      "type": "Microsoft.Network/networkInterfaces",
-      "name": "[concat(variables('DcBNicName'))]",
-      "apiVersion": "2015-05-01-preview",
+      "name": "[variables('dcaPublicIpName')]",
+      "type": "Microsoft.Network/publicIPAddresses",
       "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
       "tags": {
-        "displayName": "DcBNic"
+        "displayName": "[variables('dcaPublicIpName')]"
       },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+    {
+      "name": "[variables('dcaNicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
       "dependsOn": [
-        "[concat('Microsoft.Network/virtualNetworks/', variables('VNetName'))]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]"
       ],
+      "tags": {
+        "displayName": "[variables('dcaNicName')]"
+      },
       "properties": {
         "ipConfigurations": [
           {
             "name": "ipconfig1",
             "properties": {
               "privateIPAllocationMethod": "Dynamic",
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses','DcBPublicIp')]"
-              },
               "subnet": {
-                "id": "[variables('SubnetBRef')]"
+                "id": "[variables('dcaSubnetRef')]"
               }
             }
           }
@@ -262,40 +268,94 @@
       }
     },
     {
-      "type": "Microsoft.Network/publicIPAddresses",
-      "name": "DcAPublicIp",
-      "apiVersion": "2015-05-01-preview",
+      "name": "[variables('dcaName')]",
+      "type": "Microsoft.Compute/virtualMachines",
       "location": "[resourceGroup().location]",
-      "properties": {
-        "publicIPAllocationMethod": "Dynamic",
-        "dnsSettings": {
-          "domainNameLabel": "[variables('dnsNameForDcAMachine')]"
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Network/publicIPAddresses",
-      "name": "DcBPublicIp",
-      "apiVersion": "2015-05-01-preview",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "publicIPAllocationMethod": "Dynamic",
-        "dnsSettings": {
-          "domainNameLabel": "[variables('dnsNameForDcBMachine')]"
-        }
-      }
-    },
-    {
-      "apiVersion": "2015-05-01-preview",
-      "type": "Microsoft.Storage/storageAccounts",
-      "name": "[variables('newStorageAccountName')]",
-      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('dcaNicName'))]"
+      ],
       "tags": {
-        "displayName": "StorageAccount"
+        "displayName": "dca"
       },
       "properties": {
-        "accountType": "[parameters('storageAccountType')]"
-      }
+        "hardwareProfile": {
+          "vmSize": "[variables('dcaVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('dcaName')]",
+          "adminUsername": "[parameters('dcaAdminUsername')]",
+          "adminPassword": "[parameters('dcaAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('dcaImagePublisher')]",
+            "offer": "[variables('dcaImageOffer')]",
+            "sku": "[parameters('dcaWindowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "dcaOSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName')), '2016-01-01').primaryEndpoints.blob, variables('dcaStorageAccountContainerName'), '/', variables('dcaOSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('dcaNicName'))]"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "name": "Microsoft.Powershell.DSC",
+          "type": "extensions",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('dcaName'))]"
+          ],
+          "tags": {
+            "displayName": "dcaDSC"
+          },
+          "properties": {
+            "comment": "the forceUpdateTag must be changed when a new version of the DSC config should be applied to an existing VM. Otherwise the changes will not be picked up.",
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.20",
+            "autoUpgradeMinorVersion": true,
+            "forceUpdateTag": "0.1",
+            "settings": {
+              "configuration": {
+                "url": "[variables('dscZipLocationUri')]",
+                "script": "DomainConfig.ps1",
+                "function": "DomainConfig"
+              },
+              "configurationArguments": {
+                "argument1": "Value1",
+                "argument2": "Value2"
+              },
+              "configurationData": {
+                "url": "[variables('dcaDscConfigurationDataUri')]"
+              }
+            },
+            "protectedSettings": {
+              "configurationArguments": {
+                "universalCred": {
+                  "userName": "Carsten",
+                  "password": "SafePass3142"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
