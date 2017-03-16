@@ -42,9 +42,7 @@
     "dcaOSDiskName": "dcaOSDisk",
     "dcaPublicIpName": "dcaPublicIp",
     "dcaStorageAccountContainerName": "vhds",
-    "dcaSubnetRef": "[concat(variables('dcaVnetID'), '/subnets/', 'SubnetA')]",
     "dcaVmSize": "Standard_D2_v2",
-    "dcaVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
     "SubnetANsgName": "SubnetA.NSG",
     "SubnetAPrefix": "10.0.1.0/24",
     "SubnetBNsgName": "SubnetB.NSG",
@@ -184,21 +182,16 @@
       }
     },
     {
+      "name": "[variables('vhdStorageAccountName')]",
+      "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2016-01-01",
       "dependsOn": [],
+      "sku": {
+          "name": "[parameters('vhdStorageType')]"
+      },
       "kind": "Storage",
       "location": "[resourceGroup().location]",
-      "name": "[variables('vhdStorageAccountName')]",
-      "properties": {
-        "type": "[parameters('vhdStorageType')]"
-      },
-      "sku": {
-        "name": "[variables('vhdStorageAccountName')]"
-      },
-      "tags": {
-        "displayName": "[variables('vhdStorageAccountName')]"
-      },
-      "type": "Microsoft.Storage/storageAccounts"
+      "properties": {}
     },
     {
       "name": "[variables('dcaNicName')]",
@@ -240,31 +233,6 @@
       },
       "properties": {
         "publicIPAllocationMethod": "Dynamic"
-      }
-    },
-    {
-      "name": "[variables('dcaNicName')]",
-      "type": "Microsoft.Network/networkInterfaces",
-      "location": "[resourceGroup().location]",
-      "apiVersion": "2016-03-30",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]"
-      ],
-      "tags": {
-        "displayName": "[variables('dcaNicName')]"
-      },
-      "properties": {
-        "ipConfigurations": [
-          {
-            "name": "ipconfig1",
-            "properties": {
-              "privateIPAllocationMethod": "Dynamic",
-              "subnet": {
-                "id": "[variables('dcaSubnetRef')]"
-              }
-            }
-          }
-        ]
       }
     },
     {
@@ -314,6 +282,7 @@
       },
       "resources": [
         {
+          "comments": "the forceUpdateTag must be changed when a new version of the DSC config should be applied to an existing VM. Otherwise the changes will not be picked up.",
           "name": "Microsoft.Powershell.DSC",
           "type": "extensions",
           "location": "[resourceGroup().location]",
@@ -325,12 +294,11 @@
             "displayName": "dcaDSC"
           },
           "properties": {
-            "comment": "the forceUpdateTag must be changed when a new version of the DSC config should be applied to an existing VM. Otherwise the changes will not be picked up.",
             "publisher": "Microsoft.Powershell",
             "type": "DSC",
             "typeHandlerVersion": "2.20",
             "autoUpgradeMinorVersion": true,
-            "forceUpdateTag": "0.1",
+            "forceUpdateTag": "0.2",
             "settings": {
               "configuration": {
                 "url": "[variables('dscZipLocationUri')]",
