@@ -3,7 +3,7 @@
 @{
     AllNodes = @(
         @{
-            Nodename = "dca"
+            Nodename = "localhost"
             Role = "DC"
             DomainName = "dca.twodoms.com"
             DomainNetbiosName = "dca"
