@@ -3,9 +3,9 @@
     AllNodes = @(
         @{
             Nodename = "localhost"
-            Role = "DC"
+            Role = "TFS"
             DomainName = "domb.twodoms.com"
-            DomainNetbiosName = "domb"
+            OuPath = "dc=domb,dc=twodoms,dc=com"
             RetryCount = 20
             RetryIntervalSec = 30
             PSDscAllowPlainTextPassword = $true

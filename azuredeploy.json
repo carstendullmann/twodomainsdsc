@@ -30,17 +30,6 @@
         "2016-Datacenter",
         "2016-Nano-Server"
       ]
-    },
-    "tfsaWindowsOSVersion": {
-      "type": "string",
-      "defaultValue": "2012-R2-Datacenter",
-      "allowedValues": [
-        "2008-R2-SP1",
-        "2012-Datacenter",
-        "2012-R2-Datacenter",
-        "2016-Datacenter",
-        "2016-Nano-Server"
-      ]
     }
   },
   "variables": {
@@ -55,8 +44,9 @@
     "dcaVmSize": "Standard_D2_v2",
     "dcaDscConfigurationDataUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC/dcaConfigurationData.psd1",
     "tfsaPublicIpName": "tfsaPublicIp",
-    "tfsaImageOffer": "WindowsServer",
-    "tfsaImagePublisher": "MicrosoftWindowsServer",
+    "tfsaImageSku": "Standard",
+    "tfsaImageOffer": "SQL2014SP2-WS2012R2",
+    "tfsaImagePublisher": "MicrosoftSqlServer",
     "tfsaName": "tfsa",
     "tfsaNicName": "tfsaNic",
     "tfsaNicSubnetRef": "[concat(variables('tfsaNicVnetID'), '/subnets/', 'SubnetA')]",
@@ -401,7 +391,7 @@
           "imageReference": {
             "publisher": "[variables('tfsaImagePublisher')]",
             "offer": "[variables('tfsaImageOffer')]",
-            "sku": "[parameters('tfsaWindowsOSVersion')]",
+            "sku": "[variables('tfsaImageSku')]",
             "version": "latest"
           },
           "osDisk": {

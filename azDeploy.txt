@@ -1,0 +1,10 @@
+This template with DSC config can be deployed in various ways. Below are the commands
+to deploy into a new resource group called "twodomsdsc" via the new xplat Azure CLI 2.0,
+written in python. See https://docs.microsoft.com/en-us/cli/azure/install-azure-cli and 
+https://docs.microsoft.com/en-us/cli/azure/group/deployment#create
+
+az login 
+az group create -n "twodomsdsc" -l "West Europe"
+az group deployment create --template-file "azuredeploy.json" -g "twodomsdsc" --parameters "@azuredeploy.parameters.json"
+
+To use PowerShell or another client for deployment, see https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-template-deploy
