@@ -54,6 +54,7 @@
     "tfsaOSDiskName": "tfsaOSDisk",
     "tfsaStorageAccountContainerName": "vhds",
     "tfsaVmSize": "Standard_D2_v2",
+    "tfsaDscConfigurationDataUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC/tfsaConfigurationData.psd1",
     "SubnetANsgName": "SubnetA.NSG",
     "SubnetAPrefix": "10.0.1.0/24",
     "SubnetBNsgName": "SubnetB.NSG",
@@ -303,7 +304,7 @@
             "settings": {
               "configuration": {
                 "url": "[variables('dscZipLocationUri')]",
-                "script": "DomainConfig.ps1",
+                "script": "DomainAMachinesConfig.ps1",
                 "function": "DomainConfig"
               },
               "configurationArguments": {
@@ -409,7 +410,49 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('tfsaNicName'))]"
             }
           ]
-        }
+        },
+        "resources": [
+          {
+            "comments": "the forceUpdateTag must be changed when a new version of the DSC config should be applied to an existing VM. Otherwise the changes will not be picked up.",
+            "name": "Microsoft.Powershell.DSC",
+            "type": "extensions",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2016-03-30",
+            "dependsOn": [
+              "[resourceId('Microsoft.Compute/virtualMachines', variables('tfsaName'))]"
+            ],
+            "tags": {
+              "displayName": "tfsaDSC"
+            },
+            "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.20",
+              "autoUpgradeMinorVersion": true,
+              "forceUpdateTag": "2.0",
+              "settings": {
+                "configuration": {
+                  "url": "[variables('dscZipLocationUri')]",
+                  "script": "DomainAMachinesConfig.ps1",
+                  "function": "DomainConfig"
+                },
+                "configurationArguments": {
+                },
+                "configurationData": {
+                  "url": "[variables('tfsaDscConfigurationDataUri')]"
+                }
+              },
+              "protectedSettings": {
+                "configurationArguments": {
+                  "universalCred": {
+                    "userName": "parameters('adminUsername')",
+                    "password": "parameters('adminPassword')"
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     }
   ]
