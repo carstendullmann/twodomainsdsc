@@ -13,14 +13,25 @@
         "Premium_LRS"
       ]
     },
-    "dcaAdminUserName": {
+    "adminUserName": {
       "type": "string",
       "minLength": 1
     },
-    "dcaAdminPassword": {
+    "adminPassword": {
       "type": "securestring"
     },
     "dcaWindowsOSVersion": {
+      "type": "string",
+      "defaultValue": "2012-R2-Datacenter",
+      "allowedValues": [
+        "2008-R2-SP1",
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "2016-Datacenter",
+        "2016-Nano-Server"
+      ]
+    },
+    "tfsaWindowsOSVersion": {
       "type": "string",
       "defaultValue": "2012-R2-Datacenter",
       "allowedValues": [
@@ -40,9 +51,19 @@
     "dcaNicSubnetRef": "[concat(variables('dcaNicVnetID'), '/subnets/', 'SubnetA')]",
     "dcaNicVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
     "dcaOSDiskName": "dcaOSDisk",
-    "dcaPublicIpName": "dcaPublicIp",
     "dcaStorageAccountContainerName": "vhds",
     "dcaVmSize": "Standard_D2_v2",
+    "dcaDscConfigurationDataUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC/dcaConfigurationData.psd1",
+    "tfsaPublicIpName": "tfsaPublicIp",
+    "tfsaImageOffer": "WindowsServer",
+    "tfsaImagePublisher": "MicrosoftWindowsServer",
+    "tfsaName": "tfsa",
+    "tfsaNicName": "tfsaNic",
+    "tfsaNicSubnetRef": "[concat(variables('tfsaNicVnetID'), '/subnets/', 'SubnetA')]",
+    "tfsaNicVnetID": "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
+    "tfsaOSDiskName": "tfsaOSDisk",
+    "tfsaStorageAccountContainerName": "vhds",
+    "tfsaVmSize": "Standard_D2_v2",
     "SubnetANsgName": "SubnetA.NSG",
     "SubnetAPrefix": "10.0.1.0/24",
     "SubnetBNsgName": "SubnetB.NSG",
@@ -50,8 +71,7 @@
     "vhdStorageAccountName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
     "VNetName": "TwoSubnetsVNet",
     "VNetPrefix": "10.0.0.0/16",
-    "dscZipLocationUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC.zip",
-    "dcaDscConfigurationDataUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC/dcaConfigurationData.psd1"
+    "dscZipLocationUri": "https://raw.githubusercontent.com/carstendullmann/twodomainsdsc/master/DSC.zip"
   },
   "resources": [
     {
@@ -159,6 +179,13 @@
             "[variables('VNetPrefix')]"
           ]
         },
+        "dhcpOptions":{
+          "dnsServers": [
+            "10.0.1.4",
+            "10.0.2.4",
+            "8.8.8.8"
+          ]
+        },
         "subnets": [
           {
             "name": "SubnetA",
@@ -189,7 +216,7 @@
       "sku": {
           "name": "[parameters('vhdStorageType')]"
       },
-      "kind": "Storage",
+      "kind": "Storage",                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
       "location": "[resourceGroup().location]",
       "properties": {}
     },
@@ -199,8 +226,7 @@
       "location": "[resourceGroup().location]",
       "apiVersion": "2016-03-30",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
-        "[resourceId('Microsoft.Network/publicIPAddresses', variables('dcaPublicIpName'))]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]"
       ],
       "tags": {
         "displayName": "[variables('dcaNicName')]"
@@ -210,29 +236,14 @@
           {
             "name": "ipconfig1",
             "properties": {
-              "privateIPAllocationMethod": "Dynamic",
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.1.4",
               "subnet": {
                 "id": "[variables('dcaNicSubnetRef')]"
-              },
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('dcaPublicIpName'))]"
               }
             }
           }
         ]
-      }
-    },
-    {
-      "name": "[variables('dcaPublicIpName')]",
-      "type": "Microsoft.Network/publicIPAddresses",
-      "location": "[resourceGroup().location]",
-      "apiVersion": "2016-03-30",
-      "dependsOn": [],
-      "tags": {
-        "displayName": "[variables('dcaPublicIpName')]"
-      },
-      "properties": {
-        "publicIPAllocationMethod": "Dynamic"
       }
     },
     {
@@ -253,8 +264,8 @@
         },
         "osProfile": {
           "computerName": "[concat(variables('dcaName'),'cn')]",
-          "adminUsername": "[parameters('dcaAdminUsername')]",
-          "adminPassword": "[parameters('dcaAdminPassword')]"
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
         },
         "storageProfile": {
           "imageReference": {
@@ -314,14 +325,102 @@
             "protectedSettings": {
               "configurationArguments": {
                 "universalCred": {
-                  "userName": "Carsten",
-                  "password": "SafePass3142"
+                  "userName": "parameters('adminUsername')",
+                  "password": "parameters('adminPassword')"
                 }
               }
             }
           }
         }
       ]
+    },{
+      "name": "[variables('tfsaNicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('VNetName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('tfsaPublicIpName'))]"
+      ],
+      "tags": {
+        "displayName": "[variables('tfsaNicName')]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.1.5",
+              "subnet": {
+                "id": "[variables('tfsaNicSubnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('tfsaPublicIpName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('tfsaPublicIpName')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "[variables('tfsaPublicIpName')]"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+    {
+      "name": "[variables('tfsaName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('tfsaNicName'))]"
+      ],
+      "tags": {
+        "displayName": "[variables('tfsaName')]"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('tfsavmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('tfsaName'),'cn')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('tfsaImagePublisher')]",
+            "offer": "[variables('tfsaImageOffer')]",
+            "sku": "[parameters('tfsaWindowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "tfsaOSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName')), '2016-01-01').primaryEndpoints.blob, variables('tfsaStorageAccountContainerName'), '/', variables('tfsaOSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('tfsaNicName'))]"
+            }
+          ]
+        }
+      }
     }
   ]
 }
