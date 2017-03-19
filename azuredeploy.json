@@ -211,6 +211,8 @@
       "location": "[resourceGroup().location]",
       "properties": {}
     },
+
+
     {
       "name": "[variables('dcaNicName')]",
       "type": "Microsoft.Network/networkInterfaces",
@@ -324,7 +326,10 @@
           }
         }
       ]
-    },{
+    },
+    
+    
+    {
       "name": "[variables('tfsaNicName')]",
       "type": "Microsoft.Network/networkInterfaces",
       "location": "[resourceGroup().location]",
@@ -341,8 +346,7 @@
           {
             "name": "ipconfig1",
             "properties": {
-              "privateIPAllocationMethod": "Static",
-              "privateIPAddress": "10.0.1.5",
+              "privateIPAllocationMethod": "Dynamic",
               "subnet": {
                 "id": "[variables('tfsaNicSubnetRef')]"
               },
@@ -374,7 +378,8 @@
       "apiVersion": "2015-06-15",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('vhdStorageAccountName'))]",
-        "[resourceId('Microsoft.Network/networkInterfaces', variables('tfsaNicName'))]"
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('tfsaNicName'))]",
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('dcaName'))]"
       ],
       "tags": {
         "displayName": "[variables('tfsaName')]"
